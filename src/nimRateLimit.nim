@@ -1,3 +1,6 @@
+## Generic rate limit code
+## does not raise
+{.push raises: [].}
 import tables, times, locks, os
 
 type
@@ -43,14 +46,20 @@ proc decrementerThread(to: ThreadOptions) {.thread.} =
     sleep to.sleepTimeout
     to.prl[].decr(to.decrAmount)
 
-proc startDecrementerThread*(rl: RateLimiter, sleepTimeout = 1_000, decrAmount = 1) =
-  createThread(dt, decrementerThread, ThreadOptions(prl: addr rl, sleepTimeout: sleepTimeout, decrAmount: decrAmount))
+proc startDecrementerThread*(rl: RateLimiter, sleepTimeout = 1_000, decrAmount = 1): bool =
+  ## If returns true if the thread could be started, in case of an error false is returned.
+  try:
+    createThread(dt, decrementerThread, ThreadOptions(prl: addr rl, sleepTimeout: sleepTimeout, decrAmount: decrAmount))
+    return true
+  except:
+    return false
+
 
 when isMainModule:
   var rl = RateLimiter()
   let ident: Ident = ("/admin/login", "192.168.1.123")
   let ident2: Ident = ("/admin/login", "141.168.1.123")
-  rl.startDecrementerThread()
+  assert true == rl.startDecrementerThread()
   rl.add ident
   for idx in 0..10:
     rl.add ident2
